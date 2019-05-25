@@ -1,3 +1,4 @@
-# TODO: Make this nice
-pipe.exe: pipe.cs
-	mcs pipe.cs -debug -d:DEBUG -pkg:dotnet
+%.exe: %.cs
+	mcs $< -debug -d:DEBUG -pkg:dotnet
+
+all: VisualPipes.exe

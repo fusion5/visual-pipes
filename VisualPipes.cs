@@ -8,7 +8,6 @@ using System.Collections.Generic;
 
 enum EditorState {Start, AddingNode};
 
-
 public class NodeView {
     public const int NodeWidth  = 32;
     public const int NodeHeight = 32;
@@ -29,7 +28,7 @@ public class NodeView {
     }
 }
 
-public class HelloWorld : Form
+public class VisualPipes : Form
 {
     EditorState s;
     HashSet<NodeView> nodes = new HashSet<NodeView>();
@@ -38,10 +37,10 @@ public class HelloWorld : Form
 
     static public void Main ()
     {
-        Application.Run (new HelloWorld ());
+        Application.Run (new VisualPipes());
     }
  
-    public HelloWorld ()
+    public VisualPipes ()
     {
         addButton        = new CheckBox();
         addButton.Text   = "Add node";
