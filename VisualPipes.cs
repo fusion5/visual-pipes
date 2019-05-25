@@ -8,25 +8,6 @@ using System.Collections.Generic;
 
 enum EditorState {Start, AddingNode};
 
-public class NodeView {
-    public const int NodeWidth  = 32;
-    public const int NodeHeight = 32;
-    public int  X, Y;
-    public bool Selected;
-
-    public void Draw(Graphics g, Pen selectedPen, Pen normalPen) {
-        if (Selected)
-            g.DrawRectangle(selectedPen, X, Y, 
-                NodeView.NodeWidth, NodeView.NodeHeight);
-        else
-            g.DrawRectangle(normalPen, X, Y, 
-                NodeView.NodeWidth, NodeView.NodeHeight);
-    }
-    public bool HitTest(int HX, int HY) {
-        return (X <= HX) && (HX <= X + NodeWidth) 
-            && (Y <= HY) && (HY <= Y + NodeHeight);
-    }
-}
 
 public class VisualPipes : Form
 {
@@ -44,23 +25,23 @@ public class VisualPipes : Form
     {
         addButton        = new CheckBox();
         addButton.Text   = "Add node";
-        addButton.Click += new EventHandler (Add_Button_Click);
+        addButton.Click += AddButtonClick;
         addButton.Appearance = System.Windows.Forms.Appearance.Button;
 
         Controls.Add (addButton);
 
         this.Size = new Size(640, 480);
         this.StartPosition = FormStartPosition.CenterScreen;
-        this.MouseClick   += new MouseEventHandler (Window_Click);
-        this.MouseDown    += new MouseEventHandler (Window_MouseDown);
+        this.MouseClick   += WindowClick;
+        this.MouseDown    += WindowMouseDown;
     }
 
-    private void Window_MouseDown (object sender, MouseEventArgs e) 
+    private void WindowMouseDown (object sender, MouseEventArgs e) 
     {
 
     }
 
-    private void Window_Click (object sender, MouseEventArgs e)
+    private void WindowClick (object sender, MouseEventArgs e)
     {
         switch (s) {
             case EditorState.AddingNode: 
@@ -101,7 +82,7 @@ public class VisualPipes : Form
         this.Refresh();
     }
 
-    private void Add_Button_Click (object sender, EventArgs e)
+    private void AddButtonClick (object sender, EventArgs e)
     {
         s = EditorState.AddingNode;
     }
