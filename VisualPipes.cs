@@ -6,13 +6,21 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
 
-enum EditorState {Start, AddingNode};
+enum EditorState {Start, AddingNode, MovingNode, AddingStdoutPipe};
 
 
 public class VisualPipes : Form
 {
     EditorState s;
-    HashSet<NodeView> nodes = new HashSet<NodeView>();
+    HashSet<NodeView>       nodes = new HashSet<NodeView>();
+    HashSet<ConnectionView> links = new HashSet<ConnectionView>();
+
+    // A temporary connection for creation purposes (used when we start
+    // dragging from a node but we haven't dropped it anywhere yet):
+    ConnectionView          NewConnection; 
+
+    NodeView LastHitNode; // The node that was last hit
+    int MovingX, MovingY;
 
     CheckBox addButton;
 
@@ -32,21 +40,76 @@ public class VisualPipes : Form
 
         this.Size = new Size(640, 480);
         this.StartPosition = FormStartPosition.CenterScreen;
-        this.MouseClick   += WindowClick;
+        // this.MouseClick   += WindowClick;
         this.MouseDown    += WindowMouseDown;
+        this.MouseUp      += WindowMouseUp;
+        this.MouseMove    += WindowMouseMove;
     }
 
-    private void WindowMouseDown (object sender, MouseEventArgs e) 
+    private void WindowMouseUp(object sender, MouseEventArgs e)
     {
-
+        switch (s) {
+            case EditorState.MovingNode:
+            {
+                s = EditorState.Start;
+                LastHitNode = null;
+                break;
+            }
+            case EditorState.AddingStdoutPipe:
+            {
+                s = EditorState.Start;
+                LastHitNode   = null;
+                NewConnection = null;
+                // TODO: Gotta hit test to see where we dropped the connection!
+                break;
+            }
+        }
     }
 
-    private void WindowClick (object sender, MouseEventArgs e)
+    private void WindowMouseMove (object sender, MouseEventArgs e)
+    {
+        switch (s) {
+            case EditorState.MovingNode:
+            {
+                Debug.Assert (LastHitNode != null);
+
+                int NewX = e.X + MovingX;
+                int NewY = e.Y + MovingY;
+
+                NewX = Math.Max(0, NewX);
+                NewX = Math.Min(NewX,
+                        ClientRectangle.Width  - NodeView.NodeWidth);
+                NewY = Math.Max(0, NewY);
+                NewY = Math.Min(NewY, 
+                        ClientRectangle.Height - NodeView.NodeHeight);
+
+                LastHitNode.X = NewX;
+                LastHitNode.Y = NewY;
+
+                this.Refresh();
+                break;
+            }
+            case EditorState.AddingStdoutPipe:
+            {
+                Debug.Assert (LastHitNode   != null);
+                Debug.Assert (NewConnection != null);
+                // Create a connection from the last hit node to the
+                // current node (TODO: if we can).
+                Debug.Assert (NewConnection.State == ConnectionState.Dragging);
+                NewConnection.DraggingX = e.X;
+                NewConnection.DraggingY = e.Y;
+
+                this.Refresh();
+                break;
+            }
+        }
+    }
+
+    private void WindowMouseDown (object sender, MouseEventArgs e)
     {
         switch (s) {
             case EditorState.AddingNode: 
             {
-                // MessageBox.Show ("Adding a node at coordinates: " + e.X + ", " + e.Y);
                 NodeView n = new NodeView();
                 n.X = e.X;
                 n.Y = e.Y;
@@ -63,14 +126,44 @@ public class VisualPipes : Form
                 // them. Only 1 node can be selected at the time.
                 bool hitFound = false;
                 foreach (NodeView n in nodes) {
-                    if (hitFound) {
+                    if (hitFound) 
+                    {
                         n.Selected = false; 
                         continue;
                     }
-                    n.Selected = n.HitTest(e.X, e.Y);
-                    if (n.Selected) hitFound = true;
+                    hitFound = n.HitTest(e.X, e.Y);
+                    if (!hitFound) continue;
+
+                    Debug.Assert(hitFound);
+                    LastHitNode = n;
+
+                    if (n.HitTestStdout(e.X, e.Y)) {
+                        // We've hit stdout. Add a pipe.
+                        Debug.WriteLine("HitTestStdout");
+
+                        NewConnection = new ConnectionView();
+                        NewConnection.From = n;
+                        NewConnection.FromPort = NodePort.NodePortOut;
+                        NewConnection.State     = ConnectionState.Dragging;
+                        NewConnection.DraggingX = e.X;
+                        NewConnection.DraggingY = e.Y;
+
+                        s = EditorState.AddingStdoutPipe;
+                    }
+                    else 
+                    {
+                        Debug.WriteLine("HitTest General area");
+                        MovingX    = n.X - e.X;
+                        MovingY    = n.Y - e.Y;
+                        s = EditorState.MovingNode;
+                    }
                 }
                 UpdateView();
+                break;
+            }
+            case EditorState.MovingNode:
+            {
+                Debug.Assert(false);
                 break;
             }
         }
@@ -91,14 +184,14 @@ public class VisualPipes : Form
     {
         var g = e.Graphics;
 
-        using (Pen p = new Pen(Brushes.Black)) // IDisposable interface
-            using (Pen b = new Pen(Brushes.Blue)) {
-                b.Width = 2.0F;
-                p.Width = 2.0F;
-                foreach(NodeView n in nodes) {
-                    n.Draw(g, b, p);
-                }
-            }
+        if (NewConnection != null) {
+            Debug.Assert (NewConnection.State == ConnectionState.Dragging);
+            NewConnection.Draw(g);
+        }
+
+        foreach(NodeView n in nodes) {
+            n.Draw(g);
+        }
     }
 
 }
