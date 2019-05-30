@@ -6,8 +6,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
 
-enum EditorState {Start, AddingNode, MovingNode, AddingStdoutPipe};
-
+enum EditorState {Start, AddingNode, MovingNode, AddingPipe};
 
 public class VisualPipes : Form
 {
@@ -55,15 +54,27 @@ public class VisualPipes : Form
                 LastHitNode = null;
                 break;
             }
-            case EditorState.AddingStdoutPipe:
+            case EditorState.AddingPipe:
             {
                 s = EditorState.Start;
+                bool hitFound = false;
+                foreach (NodeView n in nodes) 
+                {
+                    hitFound = n.HitTest(e.X, e.Y);
+                    if (!hitFound) continue;
+
+                    NewConnection.To    = n;
+                    NewConnection.State = ConnectionState.Start;
+                    links.Add(NewConnection);
+
+                    break;
+                }
+                NewConnection = null; // Delete the reference to NewConnection.
                 LastHitNode   = null;
-                NewConnection = null;
-                // TODO: Gotta hit test to see where we dropped the connection!
                 break;
             }
         }
+        UpdateView();
     }
 
     private void WindowMouseMove (object sender, MouseEventArgs e)
@@ -89,7 +100,7 @@ public class VisualPipes : Form
                 this.Refresh();
                 break;
             }
-            case EditorState.AddingStdoutPipe:
+            case EditorState.AddingPipe:
             {
                 Debug.Assert (LastHitNode   != null);
                 Debug.Assert (NewConnection != null);
@@ -137,20 +148,32 @@ public class VisualPipes : Form
                     Debug.Assert(hitFound);
                     LastHitNode = n;
 
-                    if (n.HitTestStdout(e.X, e.Y)) {
+                    if (n.HitTestStdout(e.X, e.Y)) 
+                    {
                         // We've hit stdout. Add a pipe.
                         Debug.WriteLine("HitTestStdout");
-
                         NewConnection = new ConnectionView();
                         NewConnection.From = n;
                         NewConnection.FromPort = NodePort.NodePortOut;
-                        NewConnection.State     = ConnectionState.Dragging;
+                        NewConnection.State = ConnectionState.Dragging;
                         NewConnection.DraggingX = e.X;
                         NewConnection.DraggingY = e.Y;
 
-                        s = EditorState.AddingStdoutPipe;
+                        s = EditorState.AddingPipe;
+                    } 
+                    else if (n.HitTestStderr(e.X, e.Y)) 
+                    {
+                        Debug.WriteLine("HitTestStderr");
+                        NewConnection = new ConnectionView();
+                        NewConnection.From = n;
+                        NewConnection.FromPort = NodePort.NodePortErr;
+                        NewConnection.State = ConnectionState.Dragging;
+                        NewConnection.DraggingX = e.X;
+                        NewConnection.DraggingY = e.Y;
+
+                        s = EditorState.AddingPipe;
                     }
-                    else 
+                    else
                     {
                         Debug.WriteLine("HitTest General area");
                         MovingX    = n.X - e.X;
@@ -172,7 +195,7 @@ public class VisualPipes : Form
     private void UpdateView()
     {
         addButton.Checked = (s == EditorState.AddingNode);
-        this.Refresh();
+        Refresh();
     }
 
     private void AddButtonClick (object sender, EventArgs e)
@@ -189,7 +212,10 @@ public class VisualPipes : Form
             NewConnection.Draw(g);
         }
 
-        foreach(NodeView n in nodes) {
+        foreach (ConnectionView c in links) {
+            c.Draw(g);
+        }
+        foreach (NodeView n in nodes) {
             n.Draw(g);
         }
     }

@@ -1,6 +1,6 @@
 using System.Drawing;
 
-public enum NodePort {NodePortOut, NodePortErr};
+public enum NodePort {NodePortOut, NodePortErr, NodePortIn};
 
 public class NodeView 
 {
@@ -108,6 +108,15 @@ public class NodeView
             && (HY <= Y + SmallBoxHeight);
     }
 
+    public bool HitTestStderr(int HX, int HY) {
+        // Bottom right corner
+        return (X + NodeWidth - SmallBoxWidth <= HX)
+            && (HX <= X + NodeWidth)
+            && (Y + NodeHeight - SmallBoxHeight <= HY)
+            && (HY <= Y + NodeHeight)
+            ;
+    }
+
     public Point PortPoint(NodePort port) 
     {
         var p = new Point();
@@ -124,9 +133,14 @@ public class NodeView
                 p.Y = Y + NodeHeight - SmallBoxHeight / 2;
                 break;
             }
+            case NodePort.NodePortIn:
+            {
+                p.X = X;
+                p.Y = Y + SmallBoxHeight / 2;
+                break;
+            }
         }
         return p;
     }
-
 }
 

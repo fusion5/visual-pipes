@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Diagnostics;
 
 public enum ConnectionState {Start, Dragging};
 
@@ -8,23 +9,37 @@ public class ConnectionView
     public NodePort FromPort;
     public NodeView To;
     public ConnectionState State;
-
     public int DraggingX, DraggingY; // End coords. while it's being dragged
 
     public void Draw(Graphics g) 
     {
-        using (Pen p = new Pen(Brushes.Green)) {
+        Brush b; 
+
+        if (FromPort == NodePort.NodePortOut)
+            b = Brushes.Green;
+        else
+            b = Brushes.Red;
+
+        using (Pen p = new Pen(b))
+        {
             p.Width = 2.0F;
-            switch (State) 
+            switch (State)
             {
                 case ConnectionState.Dragging:
+                {
                     g.DrawLine(p, 
                         From.PortPoint(FromPort),
                         new Point(DraggingX, DraggingY));
                     break;
+                }
                 case ConnectionState.Start:
-                    g.DrawLine(p, From.X, From.Y, To.X, To.Y);
+                {
+                    Debug.Assert(To != null);
+                    g.DrawLine(p, 
+                        From.PortPoint(FromPort),
+                        To.PortPoint(NodePort.NodePortIn));
                     break;
+                }
             }
         }
     }
