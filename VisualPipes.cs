@@ -6,7 +6,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
 
-enum EditorState {Start, AddingNode, MovingNode, AddingPipe};
+enum EditorState {Start, AddingNode, MovingNode, AddingPipe, ContextMenu};
 
 public class VisualPipes : Form
 {
@@ -17,6 +17,7 @@ public class VisualPipes : Form
     // A temporary connection for creation purposes (used when we start
     // dragging from a node but we haven't dropped it anywhere yet):
     ConnectionView          NewConnection; 
+    ContextMenuView         CMenu;
 
     NodeView LastHitNode; // The node that was last hit
     int MovingX, MovingY;
@@ -37,12 +38,19 @@ public class VisualPipes : Form
 
         Controls.Add (addButton);
 
-        this.Size = new Size(640, 480);
-        this.StartPosition = FormStartPosition.CenterScreen;
-        // this.MouseClick   += WindowClick;
-        this.MouseDown    += WindowMouseDown;
-        this.MouseUp      += WindowMouseUp;
-        this.MouseMove    += WindowMouseMove;
+        CMenu = new ContextMenuView();
+        CMenu.AddSlice(MenuSlice.Cancel,     "Cancel");
+        CMenu.AddSlice(MenuSlice.Properties, "Props.");
+        CMenu.AddSlice(MenuSlice.ViewStdout, "STDOUT");
+        CMenu.AddSlice(MenuSlice.ViewStdin,  "STDIN");
+        CMenu.AddSlice(MenuSlice.ViewStderr, "STDERR");
+        CMenu.AddSlice(MenuSlice.Delete,     "Delete");
+
+        Size = new Size(640, 480);
+        StartPosition = FormStartPosition.CenterScreen;
+        MouseDown    += WindowMouseDown;
+        MouseUp      += WindowMouseUp;
+        MouseMove    += WindowMouseMove;
     }
 
     private void WindowMouseUp(object sender, MouseEventArgs e)
@@ -71,6 +79,11 @@ public class VisualPipes : Form
                 }
                 NewConnection = null; // Delete the reference to NewConnection.
                 LastHitNode   = null;
+                break;
+            }
+            case EditorState.ContextMenu:
+            {
+                s = EditorState.Start;
                 break;
             }
         }
@@ -116,6 +129,89 @@ public class VisualPipes : Form
         }
     }
 
+    // Called when we press the left mouse button
+    private void WindowMouseStartDownRightButton (MouseEventArgs e)
+    {
+        bool hitFound = false;
+        foreach (NodeView n in nodes) {
+            if (hitFound)
+            {
+                n.Selected = false; 
+                continue;
+            }
+            hitFound = n.HitTest(e.X, e.Y);
+            if (!hitFound) 
+            {
+                n.Selected = false;
+                continue;
+            }
+
+            Debug.Assert(hitFound);
+            LastHitNode = n;
+            n.Selected = true;
+
+            s = EditorState.ContextMenu;
+
+            CMenu.X = e.X;
+            CMenu.Y = e.Y;
+        }
+    }
+    // Called when we press the left mouse button
+    private void WindowMouseStartDownLeftButton (MouseEventArgs e) 
+    {
+        bool hitFound = false;
+        foreach (NodeView n in nodes) {
+            if (hitFound) 
+            {
+                n.Selected = false; 
+                continue;
+            }
+            hitFound = n.HitTest(e.X, e.Y);
+            if (!hitFound) 
+            {
+                n.Selected = false;
+                continue;
+            }
+
+            Debug.Assert(hitFound);
+            LastHitNode = n;
+            n.Selected = true;
+
+            if (n.HitTestStdout(e.X, e.Y)) 
+            {
+                // We've hit stdout. Add a pipe.
+                Debug.WriteLine("HitTestStdout");
+                NewConnection = new ConnectionView();
+                NewConnection.From = n;
+                NewConnection.FromPort = NodePort.NodePortOut;
+                NewConnection.State = ConnectionState.Dragging;
+                NewConnection.DraggingX = e.X;
+                NewConnection.DraggingY = e.Y;
+
+                s = EditorState.AddingPipe;
+            } 
+            else if (n.HitTestStderr(e.X, e.Y)) 
+            {
+                Debug.WriteLine("HitTestStderr");
+                NewConnection = new ConnectionView();
+                NewConnection.From = n;
+                NewConnection.FromPort = NodePort.NodePortErr;
+                NewConnection.State = ConnectionState.Dragging;
+                NewConnection.DraggingX = e.X;
+                NewConnection.DraggingY = e.Y;
+
+                s = EditorState.AddingPipe;
+            }
+            else
+            {
+                Debug.WriteLine("HitTest General area");
+                MovingX    = n.X - e.X;
+                MovingY    = n.Y - e.Y;
+                s = EditorState.MovingNode;
+            }
+        }
+    }
+
     private void WindowMouseDown (object sender, MouseEventArgs e)
     {
         switch (s) {
@@ -133,54 +229,14 @@ public class VisualPipes : Form
             }
             case EditorState.Start:
             {
+                if (e.Button == MouseButtons.Left) {
+                    WindowMouseStartDownLeftButton(e);
+                } else if (e.Button == MouseButtons.Right) {
+                    // Bring up the context menu...
+                    WindowMouseStartDownRightButton(e);
+                }
                 // Hit test all nodes to see if we should select any of 
                 // them. Only 1 node can be selected at the time.
-                bool hitFound = false;
-                foreach (NodeView n in nodes) {
-                    if (hitFound) 
-                    {
-                        n.Selected = false; 
-                        continue;
-                    }
-                    hitFound = n.HitTest(e.X, e.Y);
-                    if (!hitFound) continue;
-
-                    Debug.Assert(hitFound);
-                    LastHitNode = n;
-
-                    if (n.HitTestStdout(e.X, e.Y)) 
-                    {
-                        // We've hit stdout. Add a pipe.
-                        Debug.WriteLine("HitTestStdout");
-                        NewConnection = new ConnectionView();
-                        NewConnection.From = n;
-                        NewConnection.FromPort = NodePort.NodePortOut;
-                        NewConnection.State = ConnectionState.Dragging;
-                        NewConnection.DraggingX = e.X;
-                        NewConnection.DraggingY = e.Y;
-
-                        s = EditorState.AddingPipe;
-                    } 
-                    else if (n.HitTestStderr(e.X, e.Y)) 
-                    {
-                        Debug.WriteLine("HitTestStderr");
-                        NewConnection = new ConnectionView();
-                        NewConnection.From = n;
-                        NewConnection.FromPort = NodePort.NodePortErr;
-                        NewConnection.State = ConnectionState.Dragging;
-                        NewConnection.DraggingX = e.X;
-                        NewConnection.DraggingY = e.Y;
-
-                        s = EditorState.AddingPipe;
-                    }
-                    else
-                    {
-                        Debug.WriteLine("HitTest General area");
-                        MovingX    = n.X - e.X;
-                        MovingY    = n.Y - e.Y;
-                        s = EditorState.MovingNode;
-                    }
-                }
                 UpdateView();
                 break;
             }
@@ -218,6 +274,8 @@ public class VisualPipes : Form
         foreach (NodeView n in nodes) {
             n.Draw(g);
         }
+
+        if (s == EditorState.ContextMenu) CMenu.Draw(g);
     }
 
 }

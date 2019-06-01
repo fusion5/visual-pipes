@@ -10,26 +10,25 @@ public class NodeView
     public bool Selected;
 
     private const int SmallBoxWidth  = 20;
-    private const int SmallBoxHeight = 15;
+    private const int SmallBoxHeight = 16;
     private const int TxtYOffset = -2;
+
+    private Font         drawFont   = new Font("Arial", 10);
+    private Brush        drawBrush  = new SolidBrush(Color.Black);
+    private StringFormat drawFormat = new System.Drawing.StringFormat();
 
     private void DrawStdinBox(Graphics g, Pen p) 
     {
         // Draw a small box in the top right corner
         g.DrawRectangle(p, X, Y, SmallBoxWidth, SmallBoxHeight);
-        using (Font drawFont = new Font("Arial", 10))
-        using (Brush drawBrush = new SolidBrush(Color.Black))
-        using (StringFormat drawFormat = new System.Drawing.StringFormat()) 
-        {
-            g.DrawString(
-                "in", 
-                drawFont, 
-                drawBrush, 
-                X + 4,
-                Y + TxtYOffset, 
-                drawFormat
-            );
-        }
+        g.DrawString(
+            "in", 
+            drawFont, 
+            drawBrush, 
+            X + 4,
+            Y + TxtYOffset, 
+            drawFormat
+        );
     }
 
     private void DrawStdoutBox(Graphics g, Pen p) 
@@ -41,19 +40,14 @@ public class NodeView
                 SmallBoxWidth,
                 SmallBoxHeight
         );
-        using (Font drawFont = new Font("Arial", 10))
-        using (Brush drawBrush = new SolidBrush(Color.Black))
-        using (StringFormat drawFormat = new System.Drawing.StringFormat()) 
-        {
-            g.DrawString(
-                "out", 
-                drawFont, 
-                drawBrush, 
-                X + NodeWidth - SmallBoxWidth,
-                Y + TxtYOffset, 
-                drawFormat
-            );
-        }
+        g.DrawString(
+            "out", 
+            drawFont, 
+            drawBrush, 
+            X + NodeWidth - SmallBoxWidth,
+            Y + TxtYOffset, 
+            drawFormat
+        );
     }
 
     private void DrawStderrBox(Graphics g, Pen p)
@@ -64,19 +58,14 @@ public class NodeView
                 SmallBoxWidth,
                 SmallBoxHeight
         );
-        using (Font drawFont = new Font("Arial", 10))
-        using (Brush drawBrush = new SolidBrush(Color.Black))
-        using (StringFormat drawFormat = new System.Drawing.StringFormat()) 
-        {
-            g.DrawString(
-                "err", 
-                drawFont, 
-                drawBrush, 
-                X + NodeWidth  - SmallBoxWidth,
-                Y + NodeHeight - SmallBoxHeight + TxtYOffset, 
-                drawFormat
-            );
-        }
+        g.DrawString(
+            "err", 
+            drawFont, 
+            drawBrush, 
+            X + NodeWidth  - SmallBoxWidth,
+            Y + NodeHeight - SmallBoxHeight + TxtYOffset, 
+            drawFormat
+        );
     }
 
     public void Draw(Graphics g) 
