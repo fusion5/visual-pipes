@@ -40,10 +40,10 @@ public class VisualPipes : Form
 
         CMenu = new ContextMenuView();
         CMenu.AddSlice(MenuSlice.Cancel,     "Cancel");
-        CMenu.AddSlice(MenuSlice.Properties, "Props.");
-        CMenu.AddSlice(MenuSlice.ViewStdout, "STDOUT");
-        CMenu.AddSlice(MenuSlice.ViewStdin,  "STDIN");
-        CMenu.AddSlice(MenuSlice.ViewStderr, "STDERR");
+        CMenu.AddSlice(MenuSlice.Properties, "Edit");
+        CMenu.AddSlice(MenuSlice.ViewStdout, "stdout");
+        CMenu.AddSlice(MenuSlice.ViewStdin,  "stdin");
+        CMenu.AddSlice(MenuSlice.ViewStderr, "stderr");
         CMenu.AddSlice(MenuSlice.Delete,     "Delete");
 
         Size = new Size(640, 480);
@@ -123,6 +123,13 @@ public class VisualPipes : Form
                 NewConnection.DraggingX = e.X;
                 NewConnection.DraggingY = e.Y;
 
+                this.Refresh();
+                break;
+            }
+            case EditorState.ContextMenu:
+            {
+                CMenu.MouseX = e.X;
+                CMenu.MouseY = e.Y;
                 this.Refresh();
                 break;
             }

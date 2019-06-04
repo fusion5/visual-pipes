@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
@@ -19,7 +20,8 @@ public class ContextMenuSlice
 
 public class ContextMenuView 
 {
-    public int  X, Y;
+    public int X, Y;
+    public int MouseX, MouseY; // Allows us to higlight one of the slices
 
     private const int RadiusOut = 90;
     private const int RadiusIn  = 25;
@@ -28,18 +30,30 @@ public class ContextMenuView
     private List<ContextMenuSlice> Slices = new List<ContextMenuSlice>();
 
     // Text rendering stuff
-    private Font         TextFont   = new Font("Arial", 10);
-    private Brush        TextBrush  = new SolidBrush(Color.Black);
-    private StringFormat TextFormat = new System.Drawing.StringFormat();
+    private Font         TextFont     = new Font("Arial", 10);
+    private Brush        TextBrush    = new SolidBrush(Color.Black);
+    private Brush        SelTextBrush = new SolidBrush(Color.Blue);
+    private StringFormat TextFormat   = new System.Drawing.StringFormat();
 
     public void AddSlice(MenuSlice type, string text) {
         ContextMenuSlice s = new ContextMenuSlice(type, text);
         Slices.Add(s);
     }
 
-    private void RenderText(Graphics g, string t, int X, int Y) 
+    private double AngMouse() {
+        // The angle formed by the right click position and
+        // the current mouse position.
+        double dY = MouseY - Y;
+        double dX = MouseX - X;
+        return Math.Atan2(dY, dX);
+    }
+
+    private void RenderText(Graphics g, string t, int X, int Y, bool sel) 
     {
-        g.DrawString(t, TextFont, TextBrush, X, Y, TextFormat);
+        if (sel)
+            g.DrawString(t, TextFont, SelTextBrush, X, Y, TextFormat);
+        else
+            g.DrawString(t, TextFont, TextBrush, X, Y, TextFormat);
     }
 
     public void Draw(Graphics g)
@@ -57,18 +71,38 @@ public class ContextMenuView
 
         // Draw the slice borders
         using (Pen p = new Pen(Color.Black)) {
+            p.Width      = 1.0F;
+            Matrix m     = new Matrix();
+            float ang    = (float) 360 / (float) Slices.Count;
+            float angSum = 0;
+
+            float angMouse = (float) AngMouse() * 
+                (180/(float)Math.PI); // Radians to degrees
+
+            // Make the mouse angle go from 0..360 as the slice angles.
+            if (angMouse < 0) angMouse += 360; 
+
             foreach (var s in Slices) {
-                // Render a text for each slice...
-            }
-            p.Width  = 1.0F;
-            Matrix m = new Matrix();
-            int ang  = 360 / Slices.Count;
-            foreach (var s in Slices) {
-                m.RotateAt(ang, new Point(X, Y), MatrixOrder.Append);
+                bool sel = (angSum <= angMouse) && (angMouse <= (angSum + ang));
+
+                m.Reset();
+                m.RotateAt(angSum, new Point(X, Y), MatrixOrder.Append);
                 g.Transform = m;
-                g.DrawLine(p, X, Y + RadiusIn, X, Y + RadiusOut);
-                RenderText(g, s.Name, X + RadiusIn + 5, Y - 6);
+
+                g.DrawLine(p, X+RadiusIn, Y, X+RadiusOut, Y);
+
+                // Rotate a little bit more to show the text
+                m.RotateAt(ang/2, new Point(X, Y), MatrixOrder.Append);
+                g.Transform = m;
+
+                // FIXME: Make the text no go upside down
+                RenderText(g, s.Name, X+RadiusIn+5, Y-6, sel);
+
+                g.ResetTransform();
+                angSum += ang;
             }
+            m.Dispose();
+            m = null;
         }
     }
 }
