@@ -2,6 +2,8 @@ using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
+using System.Windows.Forms;
+using System.Diagnostics;
 
 // public event ...
 
@@ -16,6 +18,11 @@ public class ContextMenuSlice
         Name = s;
         Type = t;
     }
+}
+
+public class ContextMenuEvent : EventArgs
+{
+    public ContextMenuSlice SelectedSlice;
 }
 
 public class ContextMenuView 
@@ -34,6 +41,11 @@ public class ContextMenuView
     private Brush        TextBrush    = new SolidBrush(Color.Black);
     private Brush        SelTextBrush = new SolidBrush(Color.Blue);
     private StringFormat TextFormat   = new System.Drawing.StringFormat();
+
+    public ContextMenuSlice SelectedSlice;
+
+    public event SelectHandler OnSelect;
+    public delegate void SelectHandler(ContextMenuView c, ContextMenuEvent e);
 
     public void AddSlice(MenuSlice type, string text) {
         ContextMenuSlice s = new ContextMenuSlice(type, text);
@@ -54,6 +66,20 @@ public class ContextMenuView
             g.DrawString(t, TextFont, SelTextBrush, X, Y, TextFormat);
         else
             g.DrawString(t, TextFont, TextBrush, X, Y, TextFormat);
+    }
+
+    public void WindowMouseUp(object sender, MouseEventArgs e) 
+    {
+        Debug.Assert (SelectedSlice != null);
+
+        // A Mouse Up event occurred in the main window. 
+        // This can only happen if the Context Menu is displayed.
+        // Emit an event that a menu item has been selected.
+
+        ContextMenuEvent ce = new ContextMenuEvent();
+        ce.SelectedSlice = SelectedSlice;
+
+        if (OnSelect != null) OnSelect(this, ce);
     }
 
     public void Draw(Graphics g)
@@ -95,11 +121,13 @@ public class ContextMenuView
                 m.RotateAt(ang/2, new Point(X, Y), MatrixOrder.Append);
                 g.Transform = m;
 
-                // FIXME: Make the text no go upside down
+                // FIXME: Render the text in upright position
                 RenderText(g, s.Name, X+RadiusIn+5, Y-6, sel);
 
                 g.ResetTransform();
                 angSum += ang;
+
+                if (sel) SelectedSlice = s;
             }
             m.Dispose();
             m = null;

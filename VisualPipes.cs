@@ -6,7 +6,8 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
 
-enum EditorState {Start, AddingNode, MovingNode, AddingPipe, ContextMenu};
+enum EditorState {Start, AddingNode, MovingNode, AddingPipe, ContextMenu, 
+    EditProperties};
 
 public class VisualPipes : Form
 {
@@ -19,7 +20,7 @@ public class VisualPipes : Form
     ConnectionView          NewConnection; 
     ContextMenuView         CMenu;
 
-    NodeView LastHitNode; // The node that was last hit
+    NodeView SelectedNode; // The node that was last hit
     int MovingX, MovingY;
 
     CheckBox addButton;
@@ -31,6 +32,9 @@ public class VisualPipes : Form
  
     public VisualPipes ()
     {
+        Debug.WriteLine(
+            "Starting Visual-Pipes, the visual real-time pipe composer");
+
         addButton        = new CheckBox();
         addButton.Text   = "Add node";
         addButton.Click += AddButtonClick;
@@ -40,17 +44,21 @@ public class VisualPipes : Form
 
         CMenu = new ContextMenuView();
         CMenu.AddSlice(MenuSlice.Cancel,     "Cancel");
-        CMenu.AddSlice(MenuSlice.Properties, "Edit");
+        CMenu.AddSlice(MenuSlice.Properties, "Properties");
         CMenu.AddSlice(MenuSlice.ViewStdout, "stdout");
         CMenu.AddSlice(MenuSlice.ViewStdin,  "stdin");
         CMenu.AddSlice(MenuSlice.ViewStderr, "stderr");
         CMenu.AddSlice(MenuSlice.Delete,     "Delete");
+
+        CMenu.OnSelect += OnMenuSelect;
 
         Size = new Size(640, 480);
         StartPosition = FormStartPosition.CenterScreen;
         MouseDown    += WindowMouseDown;
         MouseUp      += WindowMouseUp;
         MouseMove    += WindowMouseMove;
+
+        Text = "Visual Pipes";
     }
 
     private void WindowMouseUp(object sender, MouseEventArgs e)
@@ -59,7 +67,7 @@ public class VisualPipes : Form
             case EditorState.MovingNode:
             {
                 s = EditorState.Start;
-                LastHitNode = null;
+                SelectedNode = null;
                 break;
             }
             case EditorState.AddingPipe:
@@ -78,11 +86,12 @@ public class VisualPipes : Form
                     break;
                 }
                 NewConnection = null; // Delete the reference to NewConnection.
-                LastHitNode   = null;
+                SelectedNode  = null;
                 break;
             }
             case EditorState.ContextMenu:
             {
+                MouseUp -= CMenu.WindowMouseUp; 
                 s = EditorState.Start;
                 break;
             }
@@ -90,12 +99,41 @@ public class VisualPipes : Form
         UpdateView();
     }
 
+    public void PropertiesClosed (Object sender, FormClosedEventArgs e) 
+    {
+        Text = "Visual Pipes";
+        s = EditorState.Start;
+    }
+
+    private void OnMenuSelect(ContextMenuView c, ContextMenuEvent e) 
+    {
+        switch (e.SelectedSlice.Type) {
+            case MenuSlice.Cancel: {
+                // Do nothing
+                break;
+            }
+            case MenuSlice.Properties: {
+
+                Debug.Assert (SelectedNode != null);
+                Text = "Visual Pipes <Properties>";
+
+                s = EditorState.EditProperties;
+
+                NodePropertiesForm props = new NodePropertiesForm();
+                props.FormClosed += PropertiesClosed;
+                props.ShowDialog(this);
+
+                break;
+            }
+        }
+    }
+
     private void WindowMouseMove (object sender, MouseEventArgs e)
     {
         switch (s) {
             case EditorState.MovingNode:
             {
-                Debug.Assert (LastHitNode != null);
+                Debug.Assert (SelectedNode != null);
 
                 int NewX = e.X + MovingX;
                 int NewY = e.Y + MovingY;
@@ -107,15 +145,15 @@ public class VisualPipes : Form
                 NewY = Math.Min(NewY, 
                         ClientRectangle.Height - NodeView.NodeHeight);
 
-                LastHitNode.X = NewX;
-                LastHitNode.Y = NewY;
+                SelectedNode.X = NewX;
+                SelectedNode.Y = NewY;
 
                 this.Refresh();
                 break;
             }
             case EditorState.AddingPipe:
             {
-                Debug.Assert (LastHitNode   != null);
+                Debug.Assert (SelectedNode != null);
                 Debug.Assert (NewConnection != null);
                 // Create a connection from the last hit node to the
                 // current node (TODO: if we can).
@@ -154,13 +192,15 @@ public class VisualPipes : Form
             }
 
             Debug.Assert(hitFound);
-            LastHitNode = n;
+            SelectedNode = n;
             n.Selected = true;
 
             s = EditorState.ContextMenu;
-
             CMenu.X = e.X;
             CMenu.Y = e.Y;
+
+            // Notify the context menu of when the mouse goes up.
+            MouseUp += CMenu.WindowMouseUp; 
         }
     }
     // Called when we press the left mouse button
@@ -181,13 +221,12 @@ public class VisualPipes : Form
             }
 
             Debug.Assert(hitFound);
-            LastHitNode = n;
+            SelectedNode = n;
             n.Selected = true;
 
             if (n.HitTestStdout(e.X, e.Y)) 
             {
                 // We've hit stdout. Add a pipe.
-                Debug.WriteLine("HitTestStdout");
                 NewConnection = new ConnectionView();
                 NewConnection.From = n;
                 NewConnection.FromPort = NodePort.NodePortOut;
@@ -199,7 +238,6 @@ public class VisualPipes : Form
             } 
             else if (n.HitTestStderr(e.X, e.Y)) 
             {
-                Debug.WriteLine("HitTestStderr");
                 NewConnection = new ConnectionView();
                 NewConnection.From = n;
                 NewConnection.FromPort = NodePort.NodePortErr;
@@ -211,7 +249,6 @@ public class VisualPipes : Form
             }
             else
             {
-                Debug.WriteLine("HitTest General area");
                 MovingX    = n.X - e.X;
                 MovingY    = n.Y - e.Y;
                 s = EditorState.MovingNode;
