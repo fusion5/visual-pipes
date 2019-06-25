@@ -12,7 +12,8 @@ enum EditorState {Start, AddingNode, MovingNode, AddingPipe, ContextMenu,
 public class VisualPipes : Form
 {
     EditorState s;
-    HashSet<NodeView>       nodes = new HashSet<NodeView>();
+    HashSet<NodeView>       nodevs = new HashSet<NodeView>(); // Node views
+    HashSet<NodeModel>      nodems = new HashSet<NodeModel>();
     HashSet<ConnectionView> links = new HashSet<ConnectionView>();
 
     // A temporary connection for creation purposes (used when we start
@@ -74,13 +75,23 @@ public class VisualPipes : Form
             {
                 s = EditorState.Start;
                 bool hitFound = false;
-                foreach (NodeView n in nodes) 
+                foreach (NodeView n in nodevs) 
                 {
                     hitFound = n.HitTest(e.X, e.Y);
                     if (!hitFound) continue;
 
                     NewConnection.To    = n;
                     NewConnection.State = ConnectionState.Start;
+
+                    // If NewConnection.To equals NewConnection.From
+                    // we need to inform the user that this is not allowed.
+                    if (NewConnection.To == NewConnection.From) {
+                        Console.WriteLine(
+                            "A node must refer to a different node");
+                        break;
+                    }
+
+                    NewConnection.From.Model.SetOutNode(n.Model);
                     links.Add(NewConnection);
 
                     break;
@@ -105,11 +116,30 @@ public class VisualPipes : Form
         s = EditorState.Start;
     }
 
+    private void DeleteNode(NodeView n) 
+    {
+        // Delete all links on which n is present.
+        links.RemoveWhere(c => c.From == n || c.To == n);
+        foreach (NodeModel m in nodems) {
+            m.NodeRemove(n.Model);
+        }
+        nodems.RemoveWhere(m => m == n.Model);
+        nodevs.RemoveWhere(m => m == n);
+    }
+
     private void OnMenuSelect(ContextMenuView c, ContextMenuEvent e) 
     {
         switch (e.SelectedSlice.Type) {
             case MenuSlice.Cancel: {
                 // Do nothing
+                break;
+            }
+            case MenuSlice.Delete: {
+                // Deleting a node.
+                Debug.Assert (SelectedNode != null);
+                DeleteNode (SelectedNode);
+                SelectedNode = null;
+                UpdateView();
                 break;
             }
             case MenuSlice.Properties: {
@@ -178,7 +208,7 @@ public class VisualPipes : Form
     private void WindowMouseStartDownRightButton (MouseEventArgs e)
     {
         bool hitFound = false;
-        foreach (NodeView n in nodes) {
+        foreach (NodeView n in nodevs) {
             if (hitFound)
             {
                 n.Selected = false; 
@@ -207,7 +237,7 @@ public class VisualPipes : Form
     private void WindowMouseStartDownLeftButton (MouseEventArgs e) 
     {
         bool hitFound = false;
-        foreach (NodeView n in nodes) {
+        foreach (NodeView n in nodevs) {
             if (hitFound) 
             {
                 n.Selected = false; 
@@ -261,12 +291,16 @@ public class VisualPipes : Form
         switch (s) {
             case EditorState.AddingNode: 
             {
+                NodeModel nm = new NodeModel();
+                nodems.Add(nm);
+
                 NodeView n = new NodeView();
+                n.Model = nm;
                 n.X = e.X;
                 n.Y = e.Y;
                 n.Selected = false;
 
-                nodes.Add(n);
+                nodevs.Add(n);
                 s = EditorState.Start;
                 UpdateView();
                 break;
@@ -279,7 +313,7 @@ public class VisualPipes : Form
                     // Bring up the context menu...
                     WindowMouseStartDownRightButton(e);
                 }
-                // Hit test all nodes to see if we should select any of 
+                // Hit test all node views to see if we should select any of 
                 // them. Only 1 node can be selected at the time.
                 UpdateView();
                 break;
@@ -315,7 +349,7 @@ public class VisualPipes : Form
         foreach (ConnectionView c in links) {
             c.Draw(g);
         }
-        foreach (NodeView n in nodes) {
+        foreach (NodeView n in nodevs) {
             n.Draw(g);
         }
 

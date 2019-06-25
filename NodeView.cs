@@ -9,6 +9,8 @@ public class NodeView
     public int  X, Y;
     public bool Selected;
 
+    public NodeModel Model; // Reference to the node model
+
     private const int SmallBoxWidth  = 20;
     private const int SmallBoxHeight = 16;
     private const int TxtYOffset = -2;
