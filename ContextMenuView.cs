@@ -8,7 +8,7 @@ using System.Diagnostics;
 // public event ...
 
 public enum MenuSlice {
-    Cancel, Properties, ViewStdout, ViewStdin, ViewStderr, Delete};
+    Cancel, Properties, ViewStdout, ViewStdin, ViewStderr, Delete, Start, Stop};
 
 public class ContextMenuSlice 
 {

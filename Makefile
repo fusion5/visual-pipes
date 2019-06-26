@@ -4,10 +4,14 @@
 all: VisualPipes.exe
 
 run: VisualPipes.exe
-	MONO_TRACE_LISTENER=Console.Error mono --debug VisualPipes.exe
+	MONO_TRACE_LISTENER=Console.Error mono \
+		--debug VisualPipes.exe "test1.pipes"
 
 debug: VisualPipes.exe
-	MONO_TRACE_LISTENER=Console.Error mono --verbose --debug VisualPipes.exe
+	MONO_TRACE_LISTENER=Console.Error mono \
+		--verbose \
+		--debug \
+		VisualPipes.exe "test1.pipes"
 
 clean:
 	rm *.exe

@@ -5,37 +5,50 @@ using System.Text;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
+using System.Linq;
+using System.ComponentModel;
+using System.Runtime.Serialization.Formatters.Binary;
 
 enum EditorState {Start, AddingNode, MovingNode, AddingPipe, ContextMenu, 
     EditProperties};
 
 public class VisualPipes : Form
 {
+    string OpenFilename = ""; // Name of file we're editing
+
     EditorState s;
-    HashSet<NodeView>       nodevs = new HashSet<NodeView>(); // Node views
-    HashSet<NodeModel>      nodems = new HashSet<NodeModel>();
-    HashSet<ConnectionView> links = new HashSet<ConnectionView>();
+    HashSet<NodeView>           nodevs = new HashSet<NodeView>(); // Node views
+    HashSet<ConnectionView>     links  = new HashSet<ConnectionView>();
+    Dictionary<uint, NodeModel> nodems = new Dictionary<uint, NodeModel>();
 
     // A temporary connection for creation purposes (used when we start
     // dragging from a node but we haven't dropped it anywhere yet):
-    ConnectionView          NewConnection; 
-    ContextMenuView         CMenu;
+    ConnectionView  NewConnection; 
+    ContextMenuView CMenu;
 
     NodeView SelectedNode; // The node that was last hit
     int MovingX, MovingY;
 
     CheckBox addButton;
 
-    static public void Main ()
+    static public void Main (string[] args)
     {
-        Application.Run (new VisualPipes());
+        string editFile = "";
+
+        foreach (string arg in args) {
+            editFile = arg;
+        }
+
+        Application.Run (new VisualPipes(editFile));
     }
  
-    public VisualPipes ()
+    public VisualPipes (string EditingFileName)
     {
         Debug.WriteLine(
             "Starting Visual-Pipes, the visual real-time pipe composer");
 
+        OpenFilename = EditingFileName;
+        
         addButton        = new CheckBox();
         addButton.Text   = "Add node";
         addButton.Click += AddButtonClick;
@@ -50,6 +63,7 @@ public class VisualPipes : Form
         CMenu.AddSlice(MenuSlice.ViewStdin,  "stdin");
         CMenu.AddSlice(MenuSlice.ViewStderr, "stderr");
         CMenu.AddSlice(MenuSlice.Delete,     "Delete");
+        CMenu.AddSlice(MenuSlice.Start,      "Start");
 
         CMenu.OnSelect += OnMenuSelect;
 
@@ -59,7 +73,54 @@ public class VisualPipes : Form
         MouseUp      += WindowMouseUp;
         MouseMove    += WindowMouseMove;
 
-        Text = "Visual Pipes";
+        Text = "Visual Pipes <" + OpenFilename + ">";
+
+        if (OpenFilename.Length > 0) {
+            Deserialize();
+        }
+    }
+
+    private void Deserialize() 
+    {
+        if (OpenFilename.Length > 0) {
+            // Add models
+            FileStream fs = File.Open(
+                OpenFilename,
+                FileMode.Open
+            );
+            BinaryFormatter fmt = new BinaryFormatter();
+            nodems = (Dictionary<uint, NodeModel>) fmt.Deserialize(fs);
+            // Create the views (nodes and links) based on the nodems.
+            foreach (KeyValuePair<uint, NodeModel>m in nodems) {
+                NodeView v = new NodeView();
+                v.Selected = false;
+                v.Model = m.Value;
+                nodevs.Add(v);
+                // TODO: ADD THE LINK VIEWS AS WELL
+            }
+            fs.Close();
+        }
+    }
+
+    private void Serialize() 
+    {
+        if (OpenFilename.Length > 0) {
+            // Save the model in the file.
+            FileStream fs = File.Open(
+                OpenFilename, 
+                FileMode.OpenOrCreate,
+                FileAccess.Write
+            );
+            BinaryFormatter fmt = new BinaryFormatter();
+            fmt.Serialize(fs, nodems);
+            fs.Close();
+        }
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        Serialize();
+        base.OnClosing(e);
     }
 
     private void WindowMouseUp(object sender, MouseEventArgs e)
@@ -120,10 +181,10 @@ public class VisualPipes : Form
     {
         // Delete all links on which n is present.
         links.RemoveWhere(c => c.From == n || c.To == n);
-        foreach (NodeModel m in nodems) {
+        foreach (NodeModel m in nodems.Values) {
             m.NodeRemove(n.Model);
         }
-        nodems.RemoveWhere(m => m == n.Model);
+        nodems.Remove(n.Model.ID);
         nodevs.RemoveWhere(m => m == n);
     }
 
@@ -149,7 +210,8 @@ public class VisualPipes : Form
 
                 s = EditorState.EditProperties;
 
-                NodePropertiesForm props = new NodePropertiesForm();
+                NodePropertiesForm props = 
+                    new NodePropertiesForm(SelectedNode.Model);
                 props.FormClosed += PropertiesClosed;
                 props.ShowDialog(this);
 
@@ -291,16 +353,19 @@ public class VisualPipes : Form
         switch (s) {
             case EditorState.AddingNode: 
             {
-                NodeModel nm = new NodeModel();
-                nodems.Add(nm);
+                uint maxKey = 0;
+                if (nodems.Keys.Count > 0) maxKey = nodems.Keys.Max();
+                maxKey++;
+                NodeModel nm = new NodeModel(maxKey);
+                nodems.Add(maxKey, nm);
 
-                NodeView n = new NodeView();
-                n.Model = nm;
-                n.X = e.X;
-                n.Y = e.Y;
-                n.Selected = false;
+                NodeView v = new NodeView();
+                nm.X = e.X;
+                nm.Y = e.Y;
+                v.Model = nm;
+                v.Selected = false;
+                nodevs.Add(v);
 
-                nodevs.Add(n);
                 s = EditorState.Start;
                 UpdateView();
                 break;

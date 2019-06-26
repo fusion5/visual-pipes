@@ -6,10 +6,19 @@ public class NodeView
 {
     public const int NodeWidth  = 50;
     public const int NodeHeight = 50;
-    public int  X, Y;
     public bool Selected;
 
     public NodeModel Model; // Reference to the node model
+
+    public int X {
+        get { return Model.X; }
+        set { Model.X = value; }
+    }
+
+    public int Y {
+        get { return Model.Y; }
+        set { Model.Y = value; }
+    }
 
     private const int SmallBoxWidth  = 20;
     private const int SmallBoxHeight = 16;
