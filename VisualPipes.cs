@@ -17,8 +17,8 @@ public class VisualPipes : Form
     string OpenFilename = ""; // Name of file we're editing
 
     EditorState s;
-    HashSet<NodeView>           nodevs = new HashSet<NodeView>(); // Node views
-    HashSet<ConnectionView>     links  = new HashSet<ConnectionView>();
+    Dictionary<uint, NodeView>  nodevs = new Dictionary<uint, NodeView>();
+    HashSet<ConnectionView>     links  = new HashSet   <ConnectionView>();
     Dictionary<uint, NodeModel> nodems = new Dictionary<uint, NodeModel>();
 
     // A temporary connection for creation purposes (used when we start
@@ -91,12 +91,31 @@ public class VisualPipes : Form
             BinaryFormatter fmt = new BinaryFormatter();
             nodems = (Dictionary<uint, NodeModel>) fmt.Deserialize(fs);
             // Create the views (nodes and links) based on the nodems.
-            foreach (KeyValuePair<uint, NodeModel>m in nodems) {
+            foreach (KeyValuePair<uint, NodeModel>m in nodems) 
+            {
                 NodeView v = new NodeView();
                 v.Selected = false;
                 v.Model = m.Value;
-                nodevs.Add(v);
-                // TODO: ADD THE LINK VIEWS AS WELL
+                nodevs.Add(m.Key, v);
+            }
+
+            foreach (KeyValuePair<uint, NodeModel>p in nodems) 
+            {
+                NodeModel m = p.Value;
+                if (m.GetOutNodeID() > 0) {
+                    ConnectionView N = new ConnectionView();
+                    N.From = nodevs[m.ID];
+                    N.FromPort = NodePort.NodePortOut;
+                    N.To   = nodevs[m.GetOutNodeID()];
+                    links.Add(N);
+                }
+                if (m.GetErrNodeID() > 0) {
+                    ConnectionView N = new ConnectionView();
+                    N.From = nodevs[m.ID];
+                    N.FromPort = NodePort.NodePortErr;
+                    N.To   = nodevs[m.GetErrNodeID()];
+                    links.Add(N);
+                }
             }
             fs.Close();
         }
@@ -136,12 +155,12 @@ public class VisualPipes : Form
             {
                 s = EditorState.Start;
                 bool hitFound = false;
-                foreach (NodeView n in nodevs) 
+                foreach (KeyValuePair<uint, NodeView>m in nodevs) 
                 {
-                    hitFound = n.HitTest(e.X, e.Y);
+                    hitFound = m.Value.HitTest(e.X, e.Y);
                     if (!hitFound) continue;
 
-                    NewConnection.To    = n;
+                    NewConnection.To    = m.Value;
                     NewConnection.State = ConnectionState.Start;
 
                     // If NewConnection.To equals NewConnection.From
@@ -152,7 +171,12 @@ public class VisualPipes : Form
                         break;
                     }
 
-                    NewConnection.From.Model.SetOutNode(n.Model);
+                    if (NewConnection.FromPort == NodePort.NodePortOut)
+                        NewConnection.From.Model.SetOutNode(m.Value.Model);
+
+                    if (NewConnection.FromPort == NodePort.NodePortErr)
+                        NewConnection.From.Model.SetErrNode(m.Value.Model);
+
                     links.Add(NewConnection);
 
                     break;
@@ -185,7 +209,7 @@ public class VisualPipes : Form
             m.NodeRemove(n.Model);
         }
         nodems.Remove(n.Model.ID);
-        nodevs.RemoveWhere(m => m == n);
+        nodevs.Remove(n.Model.ID);
     }
 
     private void OnMenuSelect(ContextMenuView c, ContextMenuEvent e) 
@@ -270,22 +294,23 @@ public class VisualPipes : Form
     private void WindowMouseStartDownRightButton (MouseEventArgs e)
     {
         bool hitFound = false;
-        foreach (NodeView n in nodevs) {
+        foreach (KeyValuePair<uint, NodeView>m in nodevs) 
+        {
             if (hitFound)
             {
-                n.Selected = false; 
+                m.Value.Selected = false; 
                 continue;
             }
-            hitFound = n.HitTest(e.X, e.Y);
+            hitFound = m.Value.HitTest(e.X, e.Y);
             if (!hitFound) 
             {
-                n.Selected = false;
+                m.Value.Selected = false;
                 continue;
             }
 
             Debug.Assert(hitFound);
-            SelectedNode = n;
-            n.Selected = true;
+            SelectedNode = m.Value;
+            m.Value.Selected = true;
 
             s = EditorState.ContextMenu;
             CMenu.X = e.X;
@@ -299,28 +324,29 @@ public class VisualPipes : Form
     private void WindowMouseStartDownLeftButton (MouseEventArgs e) 
     {
         bool hitFound = false;
-        foreach (NodeView n in nodevs) {
+        foreach (KeyValuePair<uint, NodeView>m in nodevs) 
+        {
             if (hitFound) 
             {
-                n.Selected = false; 
+                m.Value.Selected = false; 
                 continue;
             }
-            hitFound = n.HitTest(e.X, e.Y);
+            hitFound = m.Value.HitTest(e.X, e.Y);
             if (!hitFound) 
             {
-                n.Selected = false;
+                m.Value.Selected = false;
                 continue;
             }
 
             Debug.Assert(hitFound);
-            SelectedNode = n;
-            n.Selected = true;
+            SelectedNode = m.Value;
+            m.Value.Selected = true;
 
-            if (n.HitTestStdout(e.X, e.Y)) 
+            if (m.Value.HitTestStdout(e.X, e.Y)) 
             {
                 // We've hit stdout. Add a pipe.
                 NewConnection = new ConnectionView();
-                NewConnection.From = n;
+                NewConnection.From = m.Value;
                 NewConnection.FromPort = NodePort.NodePortOut;
                 NewConnection.State = ConnectionState.Dragging;
                 NewConnection.DraggingX = e.X;
@@ -328,10 +354,10 @@ public class VisualPipes : Form
 
                 s = EditorState.AddingPipe;
             } 
-            else if (n.HitTestStderr(e.X, e.Y)) 
+            else if (m.Value.HitTestStderr(e.X, e.Y)) 
             {
                 NewConnection = new ConnectionView();
-                NewConnection.From = n;
+                NewConnection.From = m.Value;
                 NewConnection.FromPort = NodePort.NodePortErr;
                 NewConnection.State = ConnectionState.Dragging;
                 NewConnection.DraggingX = e.X;
@@ -341,8 +367,8 @@ public class VisualPipes : Form
             }
             else
             {
-                MovingX    = n.X - e.X;
-                MovingY    = n.Y - e.Y;
+                MovingX    = m.Value.X - e.X;
+                MovingY    = m.Value.Y - e.Y;
                 s = EditorState.MovingNode;
             }
         }
@@ -364,7 +390,7 @@ public class VisualPipes : Form
                 nm.Y = e.Y;
                 v.Model = nm;
                 v.Selected = false;
-                nodevs.Add(v);
+                nodevs.Add(maxKey, v);
 
                 s = EditorState.Start;
                 UpdateView();
@@ -414,8 +440,9 @@ public class VisualPipes : Form
         foreach (ConnectionView c in links) {
             c.Draw(g);
         }
-        foreach (NodeView n in nodevs) {
-            n.Draw(g);
+        foreach (KeyValuePair<uint, NodeView>m in nodevs) 
+        {
+            m.Value.Draw(g);
         }
 
         if (s == EditorState.ContextMenu) CMenu.Draw(g);

@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Diagnostics;
 
 public enum ConnectionState {Start, Dragging};
@@ -21,8 +22,16 @@ public class ConnectionView
             b = Brushes.Red;
 
         using (Pen p = new Pen(b))
+        using (GraphicsPath capPath = new GraphicsPath())
         {
             p.Width = 2.0F;
+
+            capPath.AddLine(0, 0,  2, -6);
+            capPath.AddLine(0, 0, -2, -6);
+
+            p.CustomEndCap = new System.Drawing.Drawing2D.CustomLineCap(
+                null, capPath);
+
             switch (State)
             {
                 case ConnectionState.Dragging:
