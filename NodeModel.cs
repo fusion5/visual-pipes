@@ -45,12 +45,20 @@ public class NodeModel : ISerializable
     public void SetOutNode(NodeModel n) {
         if (n == this) throw new InvalidOperationException(
             "A node cannot pipe its standard output to its own input.");
+        if (n == null) {
+            this.stdoutNodeID = 0;
+            return;
+        }
         this.stdoutNodeID = n.ID;
     }
 
     public void SetErrNode(NodeModel n) {
         if (n == this) throw new InvalidOperationException(
             "A node cannot pipe its error output to its own input.");
+        if (n == null) {
+            this.stderrNodeID = 0;
+            return;
+        }
         this.stderrNodeID = n.ID;
     }
 

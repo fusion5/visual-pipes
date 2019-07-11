@@ -160,6 +160,18 @@ public class VisualPipes : Form
                     hitFound = m.Value.HitTest(e.X, e.Y);
                     if (!hitFound) continue;
 
+                    // Remove any old connections that start from the 
+                    // start node, to be consistent with the model.
+                    links.RemoveWhere(
+                        c => c.From     == NewConnection.From && 
+                             c.FromPort == NewConnection.FromPort
+                    );
+
+                    if (NewConnection.FromPort == NodePort.NodePortOut)
+                        NewConnection.From.Model.SetOutNode(null);
+                    if (NewConnection.FromPort == NodePort.NodePortErr)
+                        NewConnection.From.Model.SetErrNode(null);
+
                     NewConnection.To    = m.Value;
                     NewConnection.State = ConnectionState.Start;
 

@@ -27,7 +27,7 @@ public class ContextMenuEvent : EventArgs
 
 public class ContextMenuView 
 {
-    public int X, Y;
+    public int X, Y; // Where the right click happened
     public int MouseX, MouseY; // Allows us to higlight one of the slices
 
     private const int RadiusOut = 90;
@@ -75,6 +75,11 @@ public class ContextMenuView
         // A Mouse Up event occurred in the main window. 
         // This can only happen if the Context Menu is displayed.
         // Emit an event that a menu item has been selected.
+
+        // Compute the distance from the centre
+        double dist = Math.Sqrt(Math.Pow(X-e.X, 2) + Math.Pow(Y-e.Y, 2));
+
+        if (dist < RadiusIn) return;
 
         ContextMenuEvent ce = new ContextMenuEvent();
         ce.SelectedSlice = SelectedSlice;
