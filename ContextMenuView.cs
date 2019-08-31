@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Diagnostics;
 
-// public event ...
+// The context menu is a custom round game-style menu shown upon right click.
 
 public enum MenuSlice {
     Cancel, Properties, ViewStdout, ViewStdin, ViewStderr, Delete, Start, Stop};

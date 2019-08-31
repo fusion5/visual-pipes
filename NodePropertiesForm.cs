@@ -2,6 +2,8 @@ using System;
 using System.Windows.Forms;
 using System.Drawing;
 
+// Edit node properties
+
 public class NodePropertiesForm : Form
 {
     TableLayoutPanel Table;
@@ -51,7 +53,7 @@ public class NodePropertiesForm : Form
 
         Controls.Add(Table);
 
-        Text = "Node Properties";
+        Text = "Shell Command";
     }
 
     private void SaveButtonClick (object sender, EventArgs e)

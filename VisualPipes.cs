@@ -12,6 +12,8 @@ using System.Runtime.Serialization.Formatters.Binary;
 enum EditorState {Start, AddingNode, MovingNode, AddingPipe, ContextMenu, 
     EditProperties};
 
+// The main form and the controller of the whole application.
+
 public class VisualPipes : Form
 {
     string OpenFilename = ""; // Name of file we're editing
@@ -20,6 +22,8 @@ public class VisualPipes : Form
     Dictionary<uint, NodeView>  nodevs = new Dictionary<uint, NodeView>();
     HashSet<ConnectionView>     links  = new HashSet   <ConnectionView>();
     Dictionary<uint, NodeModel> nodems = new Dictionary<uint, NodeModel>();
+
+    NodeRunner runner = new NodeRunner();
 
     // A temporary connection for creation purposes (used when we start
     // dragging from a node but we haven't dropped it anywhere yet):
@@ -58,7 +62,7 @@ public class VisualPipes : Form
 
         CMenu = new ContextMenuView();
         CMenu.AddSlice(MenuSlice.Cancel,     "Cancel");
-        CMenu.AddSlice(MenuSlice.Properties, "Properties");
+        CMenu.AddSlice(MenuSlice.Properties, "Command");
         CMenu.AddSlice(MenuSlice.ViewStdout, "stdout");
         CMenu.AddSlice(MenuSlice.ViewStdin,  "stdin");
         CMenu.AddSlice(MenuSlice.ViewStderr, "stderr");
@@ -73,10 +77,12 @@ public class VisualPipes : Form
         MouseUp      += WindowMouseUp;
         MouseMove    += WindowMouseMove;
 
-        Text = "Visual Pipes <" + OpenFilename + ">";
 
         if (OpenFilename.Length > 0) {
+            Text = "Visual Pipes <" + OpenFilename + ">";
             Deserialize();
+        } else {
+            Text = "Visual Pipes";
         }
     }
 
@@ -239,10 +245,10 @@ public class VisualPipes : Form
                 UpdateView();
                 break;
             }
-            case MenuSlice.Properties: {
-
+            case MenuSlice.Properties: 
+            {
                 Debug.Assert (SelectedNode != null);
-                Text = "Visual Pipes <Properties>";
+                Text = "Visual Pipes <Command>";
 
                 s = EditorState.EditProperties;
 
@@ -251,6 +257,12 @@ public class VisualPipes : Form
                 props.FormClosed += PropertiesClosed;
                 props.ShowDialog(this);
 
+                break;
+            }
+            case MenuSlice.Start: 
+            {
+                Debug.Assert (SelectedNode != null);
+                runner.Start(SelectedNode.Model, nodems);
                 break;
             }
         }

@@ -1,5 +1,8 @@
 using System.Drawing;
 
+// A node, as shown on the diagram. The *View classes
+// render the nodes and the connections between them.
+
 public enum NodePort {NodePortOut, NodePortErr, NodePortIn};
 
 public class NodeView 

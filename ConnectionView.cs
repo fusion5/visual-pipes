@@ -4,6 +4,9 @@ using System.Diagnostics;
 
 public enum ConnectionState {Start, Dragging};
 
+// A connection is a line between two nodes.
+// The *View classes render the nodes and the connections between them.
+
 public class ConnectionView 
 {
     public NodeView From;
