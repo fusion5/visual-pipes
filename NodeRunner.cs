@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
-
-// Runs the nodes. All process code is here but we might
-// want to refactor this later on.
+using System;
 
 public class NodeRunner 
 {
@@ -10,25 +8,30 @@ public class NodeRunner
         NodeModel targetNode, 
         Dictionary<uint, NodeModel> nodems // Node Models
     ) {
-        Dictionary<uint, NodeModel> parentNodes = 
-            new Dictionary<uint, NodeModel>();
+        NodeModel parentNode = null;
 
-        // First start any parent nodes of TargetNode.
-        foreach (KeyValuePair<uint, NodeModel>m in nodems) 
+        // First start the parent node of TargetNode (if any).
+        foreach (KeyValuePair<uint, NodeModel>m in nodems)
         {
             if (m.Value.GetOutNodeID() == targetNode.ID) {
-                Start (m.Value, nodems);
-                parentNodes.Add(m.Value.ID, m.Value);
+                if (parentNode != null) 
+                    throw new InvalidOperationException(
+                        "Cannot have more than one parent node!");
+                parentNode = m.Value;
             }
             if (m.Value.GetErrNodeID() == targetNode.ID) {
-                Start (m.Value, nodems);
-                parentNodes.Add(m.Value.ID, m.Value);
+                if (parentNode != null) 
+                    throw new InvalidOperationException(
+                        "Cannot have more than one parent node!");
+                parentNode = m.Value;
             }
         }
 
-        // Launch the processes for targetNode.
-        Process pTarget = new Process();
-        pTarget.StartInfo.FileName = targetNode.ShellCommand;
+        targetNode.Run(parentNode);
+
+        if (parentNode != null)
+            Start (parentNode, nodems);
+
     }
 }
 

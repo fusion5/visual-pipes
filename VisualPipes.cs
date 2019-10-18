@@ -62,12 +62,12 @@ public class VisualPipes : Form
 
         CMenu = new ContextMenuView();
         CMenu.AddSlice(MenuSlice.Cancel,     "Cancel");
-        CMenu.AddSlice(MenuSlice.Properties, "Command");
+        CMenu.AddSlice(MenuSlice.Properties, "Edit");
         CMenu.AddSlice(MenuSlice.ViewStdout, "stdout");
         CMenu.AddSlice(MenuSlice.ViewStdin,  "stdin");
         CMenu.AddSlice(MenuSlice.ViewStderr, "stderr");
         CMenu.AddSlice(MenuSlice.Delete,     "Delete");
-        CMenu.AddSlice(MenuSlice.Start,      "Start");
+        CMenu.AddSlice(MenuSlice.Start,      "Run");
 
         CMenu.OnSelect += OnMenuSelect;
 
@@ -161,9 +161,9 @@ public class VisualPipes : Form
             {
                 s = EditorState.Start;
                 bool hitFound = false;
-                foreach (KeyValuePair<uint, NodeView>m in nodevs) 
+                foreach (KeyValuePair<uint, NodeView>v in nodevs) 
                 {
-                    hitFound = m.Value.HitTest(e.X, e.Y);
+                    hitFound = v.Value.HitTest(e.X, e.Y);
                     if (!hitFound) continue;
 
                     // Remove any old connections that start from the 
@@ -173,16 +173,34 @@ public class VisualPipes : Form
                              c.FromPort == NewConnection.FromPort
                     );
 
+                    {
+                        // A NODE MAY HAVE ONLY 1 INCOMING CONNECTION
+                        // (In the future we might change this limitation)
+                        // Remove connections that end at the target node
+                        // so that only one input is allowed at a node.
+                        links.RemoveWhere(
+                            c => c.To == v.Value
+                        );
+                        // Reset the Out/Err node IDs that linked to this node...
+                        foreach (NodeModel m in nodems.Values)
+                        {
+                            if (m.GetOutNodeID() == v.Value.Model.ID)
+                                m.SetOutNode(null);
+                            if (m.GetErrNodeID() == v.Value.Model.ID)
+                                m.SetErrNode(null);
+                        }
+                    }
+
                     if (NewConnection.FromPort == NodePort.NodePortOut)
                         NewConnection.From.Model.SetOutNode(null);
                     if (NewConnection.FromPort == NodePort.NodePortErr)
                         NewConnection.From.Model.SetErrNode(null);
 
-                    NewConnection.To    = m.Value;
+                    NewConnection.To    = v.Value;
                     NewConnection.State = ConnectionState.Start;
 
                     // If NewConnection.To equals NewConnection.From
-                    // we need to inform the user that this is not allowed.
+                    // we inform the user that this is not allowed.
                     if (NewConnection.To == NewConnection.From) {
                         Console.WriteLine(
                             "A node must refer to a different node");
@@ -190,10 +208,10 @@ public class VisualPipes : Form
                     }
 
                     if (NewConnection.FromPort == NodePort.NodePortOut)
-                        NewConnection.From.Model.SetOutNode(m.Value.Model);
+                        NewConnection.From.Model.SetOutNode(v.Value.Model);
 
                     if (NewConnection.FromPort == NodePort.NodePortErr)
-                        NewConnection.From.Model.SetErrNode(m.Value.Model);
+                        NewConnection.From.Model.SetErrNode(v.Value.Model);
 
                     links.Add(NewConnection);
 
@@ -221,7 +239,7 @@ public class VisualPipes : Form
 
     private void DeleteNode(NodeView n) 
     {
-        // Delete all links on which n is present.
+        // Delete all links at the ends of which n is present.
         links.RemoveWhere(c => c.From == n || c.To == n);
         foreach (NodeModel m in nodems.Values) {
             m.NodeRemove(n.Model);
